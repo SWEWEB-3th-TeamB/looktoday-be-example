@@ -1,7 +1,7 @@
 import express from 'express';
 import passport from 'passport';
 import { isLoggedIn, isNotLoggedIn } from '../middlewares/index.js';
-import { signup, login } from '../controller/auth.js';
+import { signup, login } from '../controller/authController.js';
 
 const router = express.Router();
 
