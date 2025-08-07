@@ -24,33 +24,46 @@ model User {
   gungu            String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  posts     Post[]
+  likes     Like[]
 }
 
 model Post {
-  id                Int        @id @default(autoincrement())
+  id                Int                   @id @default(autoincrement())
   userId            Int
-  user              User       @relation(fields: [userId], references: [id])
+  user              User                  @relation(fields: [userId], references: [id])
   date              DateTime
   si                String?
   gungu             String?
-  apparent_temp     Float?
-  apparent_humidity Float?
-  weather           Weather?   @relation(fields: [id], references: [looktodayId])
+  apparent_temp     ApparentTempLevel?    // enum 사용
+  apparent_humidity ApparentHumidityLevel?
   isPublic          Boolean
-  comment           String?    @db.VarChar(40)
-  images            Image[]    // 1:N with Image
-  likes             Like[]     // 1:N with Like
+  comment           String?               @db.VarChar(40)
+  imageUrl          String?               
 
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  likes             Like[]
+  weather           Weather?
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 }
 
-model Image {
-  id         Int    @id @default(autoincrement())
-  imgUrl     String @db.VarChar(1000)
-  postId     Int
-  post       Post   @relation(fields: [postId], references: [id])
+enum ApparentTempLevel {
+  FREEZING     // 추워요
+  COLD         // 쌀쌀해요
+  COOL         // 시원해요
+  WARM         // 따뜻해요
+  HOT          // 더워요
+  VERY_HOT     // 무더워요
 }
+
+enum ApparentHumidityLevel {
+  DRY          // 건조해요
+  NORMAL       // 괜찮아요
+  HUMID        // 습해요
+}
+
 
 model Like {
   id         Int    @id @default(autoincrement())

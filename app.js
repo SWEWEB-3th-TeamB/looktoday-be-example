@@ -6,6 +6,7 @@ import { CustomError } from "./src/response/CustomError.js";
 import { ApiResponse } from "./src/response/apiResponse.js";
 import authRouter from "./src/routes/auth.js"; // default export로 가정
 import weatherRouter from "./src/routes/weather.js"; // default export로 가정
+import looktodayRouter from "./src/routes/looktoday.js"; // default export로 가정
 import passportConfig from "./src/passport/index.js";
 
 import dotenv from "dotenv";
@@ -36,6 +37,7 @@ app.use(passport.session());
 // ✅ 4. auth 라우터 연결
 app.use("/", authRouter); // 이제 /signup, /login 인식됨!
 app.use("/api", weatherRouter);
+app.use("/api", looktodayRouter);
 
 //gptgpt
 
