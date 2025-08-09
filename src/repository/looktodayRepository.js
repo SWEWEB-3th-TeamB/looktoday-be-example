@@ -11,6 +11,7 @@ export const createPost = async ({
   apparent_humidity,
   isPublic,
   imageUrl,
+  comment,
 }) => {
   return await prisma.post.create({
     data: {
@@ -22,6 +23,7 @@ export const createPost = async ({
       apparent_humidity,
       isPublic,
       imageUrl,
+      comment,
     },
   });
 };

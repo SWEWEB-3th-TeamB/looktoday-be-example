@@ -12,7 +12,13 @@ export const createLooktodayService = async (data) => {
     apparent_humidity,
     isPublic,
     imageUrl,
+    comment,
   } = data;
+
+  const safeComment =
+    typeof comment === "string" && comment.trim().length > 0
+      ? comment.trim().slice(0, 40)
+      : null;
 
   const post = await createPost({
     userId,
@@ -23,6 +29,7 @@ export const createLooktodayService = async (data) => {
     apparent_humidity,
     isPublic,
     imageUrl,
+    comment: safeComment,
   });
   return post;
 };

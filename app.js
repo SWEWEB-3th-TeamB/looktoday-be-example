@@ -35,7 +35,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ✅ 4. auth 라우터 연결
-app.use("/", authRouter); // 이제 /signup, /login 인식됨!
+app.use("/api", authRouter); // 이제 /signup, /login 인식됨!
 app.use("/api", weatherRouter);
 app.use("/api", looktodayRouter);
 
