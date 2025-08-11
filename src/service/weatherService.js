@@ -117,126 +117,93 @@ function calculateBaseTime(date) {
   return (closest < 10 ? "0" + closest : "" + closest) + "00";
 }
 
-//looktoday 추가 시 들어갈 확정 날씨 정보
 
-const ASOS_ENDPOINT =
-  "https://apis.data.go.kr/1360000/AsosHourlyInfoService/getWthrDataList";
+//초단기 실황 조회
 
-// 공공데이터포털 키 (Encoding/Decoding 어느 쪽이든 동작하게 처리)
-const RAW_KEY = process.env.WEATHER_ASOS_API_KEY;
-const ASOS_SERVICE_KEY = (() => {
-  if (!RAW_KEY) throw new Error("WEATHER_ASOS_API_KEY is missing");
-  try {
-    return decodeURIComponent(RAW_KEY);
-  } catch {
-    return RAW_KEY;
+const ULTRA_NCST_URL =
+  "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst";
+const SERVICE_KEY = process.env.WEATHER_API_KEY;
+
+// 초단기 실황 조회
+// opts: { date: 'yyyy-mm-dd', time: 'HHmm' } (옵션: 없으면 현재시각 기준 자동 계산)
+export const getUltraNowcastService = async (sido, gungu, opts = {}) => {
+  // 1) 좌표
+  const coords = getCoordinates(sido, gungu);
+  if (!coords) {
+    throw new CustomError("LOCATION_NOT_FOUND", "유효하지 않은 지역입니다.");
   }
-})();
+  const { nx, ny } = coords;
 
-// 한국시간 now
-function nowKST() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
-  );
-}
-
-// ASOS는 D-1 자료를 11시 이후 제공 → 기본값: 전일의 현재 ‘정시’
-function defaultAsosDateHour() {
-  const kst = nowKST();
-  kst.setDate(kst.getDate() - 1);
-  const y = kst.getFullYear();
-  const m = String(kst.getMonth() + 1).padStart(2, "0");
-  const d = String(kst.getDate()).padStart(2, "0");
-  const h = String(kst.getHours()).padStart(2, "0");
-  return { date: `${y}${m}${d}`, hour: h };
-}
-
-/**
- * 시도/군구 + (옵션) date/hour → 최근접 ASOS 관측소의 특정 ‘한 시간’ 관측값
- * @param {string} sido
- * @param {string} gungu
- * @param {string=} date  "YYYY-MM-DD" 또는 "YYYYMMDD"
- * @param {string|number=} hour "HH" (0~23)
- */
-export async function getAsosObservedAt(sido, gungu, date, hour) {
-  // 1) 최근접 관측소 선택
-  const picked = chooseAsosStation(sido, gungu); // { station: { stnId, ... }, centroid }
-  const stnId = picked.station.stnId;
-
-  // 2) 조회 시각 설정
-  let startDt, startHh;
-  if (date && hour !== undefined) {
-    startDt = String(date).replace(/-/g, ""); // YYYYMMDD
-    startHh = String(hour).padStart(2, "0"); // HH
+  // 2) base_date/base_time 결정
+  let baseDate, baseTime;
+  if (opts.date && opts.time) {
+    baseDate = opts.date.replace(/-/g, "");       // yyyyMMdd
+    baseTime = opts.time;                          // HHmm (10분 단위)
   } else {
-    const def = defaultAsosDateHour();
-    startDt = def.date;
-    startHh = def.hour;
+    ({ baseDate, baseTime } = calculateUltraNcstBase(new Date()));
   }
 
-  // 3) API 호출 (해당 ‘정시’ 한 타임만)
-  const qs = new URLSearchParams({
-    serviceKey: ASOS_SERVICE_KEY,
-    dataCd: "ASOS",
-    dateCd: "HR",
-    startDt,
-    startHh,
-    endDt: startDt,
-    endHh: startHh,
-    stnIds: String(stnId),
-    dataType: "JSON",
-    numOfRows: "10",
+  // 3) 요청
+  const query = new URLSearchParams({
+    serviceKey: SERVICE_KEY,
     pageNo: "1",
+    numOfRows: "1000",
+    dataType: "JSON",
+    base_date: baseDate,
+    base_time: baseTime,
+    nx,
+    ny,
   }).toString();
 
-  const url = `${ASOS_ENDPOINT}?${qs}`;
+  const url = `${ULTRA_NCST_URL}?${query}`;
 
   try {
-    const { data } = await axios.get(url, { timeout: 10000 });
-    const header = data?.response?.header;
-    const items = data?.response?.body?.items?.item;
-
-    if (!header || header.resultCode !== "00") {
-      const code = header?.resultCode ?? "NO_HEADER";
-      const msg = header?.resultMsg ?? "기상청 응답 헤더 없음";
-      throw new CustomError("KMA_ERROR", `기상청 에러(${code}): ${msg}`);
-    }
-    if (!Array.isArray(items) || items.length === 0) {
-      throw new CustomError(
-        "NODATA_ERROR",
-        "해당 시각의 관측 데이터가 없습니다."
-      );
+    const { data } = await axios.get(url);
+    const body = data?.response?.body;
+    const items = body?.items?.item;
+    if (!items || !items.length) {
+      // 실황은 시계열이 조밀해서, 없다면 10분씩 한두 번만 되감아 재시도하는 것도 방법
+      throw new CustomError("WEATHER_NOT_FOUND", "해당 시각의 실황이 없습니다.");
     }
 
-    const it = items[0]; // 일반적으로 1건
+    // 실황은 obsrValue 사용
+    const weather = items.reduce((acc, it) => {
+      acc[translateCategory(it.category)] = isNaN(it.obsrValue)
+        ? it.obsrValue
+        : Number(it.obsrValue);
+      return acc;
+    }, {});
 
-    const weather = {
-      "기온(°C)": it.ta != null ? Number(it.ta) : null,
-      "습도(%)": it.hm != null ? Number(it.hm) : null,
-      "강수량(mm)": it.rn != null ? Number(it.rn) : null,
-      "풍속(m/s)": it.ws != null ? Number(it.ws) : null,
-      "풍향(16방위)": it.wd != null ? Number(it.wd) : null,
-      "현지기압(hPa)": it.pa != null ? Number(it.pa) : null,
-      "해면기압(hPa)": it.ps != null ? Number(it.ps) : null,
-      "일조(hr)": it.ss != null ? Number(it.ss) : null,
-      "일사(MJ/m2)": it.icsr != null ? Number(it.icsr) : null,
-      "시정(10m)": it.vs != null ? Number(it.vs) : null,
-      "적설(cm)": it.dsnw != null ? Number(it.dsnw) : null,
+    // 공통 메타
+    const meta = {
+      baseDate: items[0].baseDate,
+      baseTime: items[0].baseTime,
     };
 
     return {
-      meta: {
-        request: { sido, gungu },
-        pickedStation: picked.station,
-        centroid: picked.centroid,
-        time: { date: startDt, hour: startHh },
-      },
+      date: meta.baseDate, // YYYYMMDD
+      ...meta,
+      location: { sido, gungu, nx, ny },
       weather,
-      raw: items, // 필요 없으면 삭제
     };
-  } catch (err) {
-    if (err instanceof CustomError) throw err;
-    console.error("ASOS API Error:", err?.response?.data ?? err.message);
-    throw new CustomError("ASOS_API_FAILED", "ASOS 관측자료 조회 실패");
+  } catch (e) {
+    if (e instanceof CustomError) throw e;
+    console.error("UltraNcst API Error:", e?.message);
+    throw new CustomError("WEATHER_API_FAILED", "초단기 실황 조회 실패");
   }
+};
+
+// 초단기 실황 base 계산: (현재시각 - 10분) → 10분 단위 내림
+function calculateUltraNcstBase(now) {
+  const t = new Date(now.getTime() - 10 * 60 * 1000); // 지연 보정
+  const yyyy = t.getFullYear();
+  const mm = String(t.getMonth() + 1).padStart(2, "0");
+  const dd = String(t.getDate()).padStart(2, "0");
+  const HH = String(t.getHours()).padStart(2, "0");
+  const MM = String(Math.floor(t.getMinutes() / 10) * 10).padStart(2, "0");
+
+  return {
+    baseDate: `${yyyy}${mm}${dd}`,
+    baseTime: `${HH}${MM}`, // HHmm
+  };
 }

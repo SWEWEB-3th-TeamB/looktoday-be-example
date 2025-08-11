@@ -3,8 +3,15 @@ import { ApiResponse } from "../response/apiResponse.js";
 import { CustomError } from "../response/CustomError.js";
 
 export const createLooktoday = async (req, res, next) => {
-  try {
-    const result = await createLooktodayService(req.body);
+    try {
+    const userId = req.user?.id; 
+    if (!userId) throw new CustomError("UNAUTHORIZED", "로그인이 필요합니다.");
+
+    const result = await createLooktodayService({
+      ...req.body,     // date, time, si, gungu, ...
+      userId,
+    });
+
     return res.status(201).json(
       ApiResponse.success({
         code: "LOOKTODAY_CREATED",

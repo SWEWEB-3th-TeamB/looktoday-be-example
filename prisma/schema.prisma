@@ -14,78 +14,90 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id               Int      @id @default(autoincrement())
-  email            String   @unique
-  password         String
-  nickname         String   @unique
-  sido             String
-  gungu            String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  nickname  String   @unique
+  sido      String
+  gungu     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  posts     Post[]
-  likes     Like[]
+  posts Post[]
+  likes Like[]
 }
 
 model Post {
-  id                Int                   @id @default(autoincrement())
-  userId            Int
-  user              User                  @relation(fields: [userId], references: [id])
-  date              DateTime
-  si                String?
-  gungu             String?
-  apparent_temp     ApparentTempLevel?    // enum 사용
-  apparent_humidity ApparentHumidityLevel?
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  date  String
+  time  String?
+  si    String?
+  gungu String?
+
+  temp              Float?
+  apparent_temp     ApparentTempLevel? //체감온도, enum 사용
+  apparent_humidity ApparentHumidityLevel? //체감 습도, enum 사용
   isPublic          Boolean
-  comment           String?               @db.VarChar(40)
-  imageUrl          String?               
+  comment           String?                @db.VarChar(40)
+  imageUrl          String?
 
-  likes             Like[]
-  weather           Weather?
+  likes   Like[]
+  weather Weather?
 
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum ApparentTempLevel {
-  FREEZING     // 추워요
-  COLD         // 쌀쌀해요
-  COOL         // 시원해요
-  WARM         // 따뜻해요
-  HOT          // 더워요
-  VERY_HOT     // 무더워요
+  FREEZING      //추워요
+  COLD      //쌀쌀해요
+  COOL      //시원해요
+  WARM      //따뜻해요
+  HOT       //더워요
+  VERY_HOT        //무더워요
 }
 
 enum ApparentHumidityLevel {
-  DRY          // 건조해요
-  NORMAL       // 괜찮아요
-  HUMID        // 습해요
+  DRY       //건조해요
+  NORMAL      //괜찮아요
+  HUMID       //습해요
 }
 
-
 model Like {
-  id         Int    @id @default(autoincrement())
-  postId     Int
-  userId     Int
-  post       Post   @relation(fields: [postId], references: [id])
-  user       User   @relation(fields: [userId], references: [id])
+  id     Int  @id @default(autoincrement())
+  postId Int
+  userId Int
+  post   Post @relation(fields: [postId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
 }
 
 model Weather {
-  weatherId   Int @id @default(autoincrement())
-  tmp         Float
-  uuu         Float
-  vvv         Float
-  vec         Int
-  wsd         Float
-  sky         Int
-  pty         Int
-  pop         Int
-  wav         String?
-  pcp         String?
-  reh         Int
-  sno         String?
-  post        Post    @relation(fields: [looktodayId], references: [id])
+  weatherId Int @id @default(autoincrement())
+
+  // Post 연동
+  looktodayId Int  @unique
+  post        Post @relation(fields: [looktodayId], references: [id], onDelete: Cascade)
+
+  // 조회 메타
+  sido  String
+  gungu String
+  date  String // YYYY-MM-DD
+  time  String // HHmm (10분 단위)
+
+  // 초단기 실황 항목 (obsrValue 기반)
+  tmp Float // T1H: 기온(°C)
+  reh Int // REH: 습도(%)
+  wsd Float // WSD: 풍속(m/s)
+  vec Int // VEC: 풍향(°)
+  uuu Float // UUU: 동서바람성분(m/s)
+  vvv Float // VVV: 남북바람성분(m/s)
+  pty Int // PTY: 강수형태(코드)
+  pcp String? // RN1: 1시간 강수량(mm) - 문자열로 올 수 있음
+  lgt Int? // LGT: 낙뢰(0~3)
+
+  @@index([looktodayId])
 }

@@ -12,6 +12,10 @@ const categoryMap = {
   PCP: "1시간 강수량(mm)",
   REH: "습도(%)",
   SNO: "1시간 신적설(cm)",
+
+  T1H: "기온(°C)",              // Temperature
+  RN1: "1시간 강수량(mm)",       // Rainfall 1h
+  LGT: "낙뢰",                   // Lightning
 };
 
 /**
