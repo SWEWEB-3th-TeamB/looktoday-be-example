@@ -5,13 +5,12 @@ import { getCoordinates } from "../utils/locationMapper.js";
 import { CustomError } from "../response/index.js";
 import { translateCategory } from "../utils/weatherCategoryMapper.js";
 
-import { chooseAsosStation } from "../utils/nearestAsos.js"; // ASOS 관측소 선택
-
 // 기상청 단기예보 API 설정 (예: 실시간 초단기 예보)
 const WEATHER_API_URL =
   "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst";
 const FORECAST_SERVICE_KEY = process.env.WEATHER_API_KEY;
 
+/*
 //오늘의 날씨 - 날씨 예보 정보
 export const getWeatherService = async (sido, gungu) => {
   //1.시도 + 군구 로 nx, ny 좌표 조회
@@ -22,7 +21,7 @@ export const getWeatherService = async (sido, gungu) => {
 
   const { nx, ny } = coords;
 
-  // 2. 날짜/시간 계산 (base_date, base_time)
+  //2. 날짜/시간 계산 (base_date, base_time)
   const now = new Date();
   const yyyyMMdd = now.toISOString().split("T")[0].replace(/-/g, "");
   const baseTime = calculateBaseTime(now); // 예: "0500", "1100" 등
@@ -118,6 +117,9 @@ function calculateBaseTime(date) {
 }
 
 
+
+*/
+
 //초단기 실황 조회
 
 const ULTRA_NCST_URL =
@@ -137,8 +139,8 @@ export const getUltraNowcastService = async (sido, gungu, opts = {}) => {
   // 2) base_date/base_time 결정
   let baseDate, baseTime;
   if (opts.date && opts.time) {
-    baseDate = opts.date.replace(/-/g, "");       // yyyyMMdd
-    baseTime = opts.time;                          // HHmm (10분 단위)
+    baseDate = opts.date.replace(/-/g, ""); // yyyyMMdd
+    baseTime = opts.time; // HHmm (10분 단위)
   } else {
     ({ baseDate, baseTime } = calculateUltraNcstBase(new Date()));
   }
@@ -163,7 +165,10 @@ export const getUltraNowcastService = async (sido, gungu, opts = {}) => {
     const items = body?.items?.item;
     if (!items || !items.length) {
       // 실황은 시계열이 조밀해서, 없다면 10분씩 한두 번만 되감아 재시도하는 것도 방법
-      throw new CustomError("WEATHER_NOT_FOUND", "해당 시각의 실황이 없습니다.");
+      throw new CustomError(
+        "WEATHER_NOT_FOUND",
+        "해당 시각의 실황이 없습니다."
+      );
     }
 
     // 실황은 obsrValue 사용
